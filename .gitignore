@@ -1,0 +1,14 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-shm
+*.db-wal
+uploads/
+.DS_Store
+dist/
+*.egg-info/
+.ruff_cache/
+.mypy_cache/
