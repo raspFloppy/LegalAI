@@ -1,6 +1,11 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Walk up from api/src/api/config.py  →  api/src/api/  →  api/src/  →  api/  →  legalai/
+_PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+_ENV_FILE = _PROJECT_ROOT / ".env"
 
 
 class Settings(BaseSettings):
@@ -13,7 +18,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -28,7 +33,7 @@ class Settings(BaseSettings):
     telegram_webhook_secret: str = "fake-webhook-secret-token"
 
     gemini_api_key: str = "fake-gemini-api-key"
-    gemini_model: str = "gemini-1.5-pro"
+    gemini_model: str = "gemini-2.0-flash"
 
     upload_dir: str = "./uploads"
     api_base_url: str = "http://localhost:8000"

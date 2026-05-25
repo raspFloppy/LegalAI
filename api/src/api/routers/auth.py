@@ -1,9 +1,9 @@
 from datetime import datetime, timedelta
 from typing import Annotated
 
+import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
-from passlib.context import CryptContext
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -13,8 +13,6 @@ from api.database.models import LegalUser
 from api.schemas.auth import LoginRequest, TokenResponse, UserResponse
 
 router = APIRouter()
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def create_access_token(subject: str) -> str:
@@ -100,7 +98,9 @@ async def login(
     )
     user = result.first()
 
-    if user is None or not _pwd_context.verify(body.password, user.hashed_password):
+    if user is None or not bcrypt.checkpw(
+        body.password.encode(), user.hashed_password.encode()
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",

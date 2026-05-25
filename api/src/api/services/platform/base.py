@@ -134,3 +134,19 @@ class MessagingPlatform(ABC):
         Returns:
             A tuple of ``(raw_bytes, mime_type)``.
         """
+
+    async def remove_inline_keyboard(
+        self,
+        chat_id: str,
+        message_id: int,
+    ) -> None:
+        """Remove the inline keyboard from a previously sent message.
+
+        Default implementation is a no-op.  Platforms that support editing
+        messages (e.g. Telegram) should override this to prevent users from
+        pressing buttons more than once.
+
+        Args:
+            chat_id: Chat identifier of the message to edit.
+            message_id: Platform message identifier to edit.
+        """

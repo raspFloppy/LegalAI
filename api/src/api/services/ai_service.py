@@ -1,7 +1,8 @@
 import json
 from typing import Optional
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from pydantic import BaseModel
 
 from api.database.models import CasePriority
@@ -27,18 +28,18 @@ Clarifying questions rules:
 - If no clarification needed, set "questions" to an empty list
 
 JSON schema:
-{
+{{
   "title": "5-7 word case title",
   "description": "2-3 sentence professional description for the lawyer dashboard",
   "priority": "HIGH | MEDIUM | LOW",
   "user_feedback": "Empathetic response to send to the client",
   "questions": [
-    {
+    {{
       "question": "The clarifying question text",
       "options": ["Option A", "Option B"]
-    }
+    }}
   ]
-}
+}}
 
 Client message:
 {message}
@@ -93,12 +94,8 @@ class AIService:
         api_key: str = settings.gemini_api_key,
         model_name: str = settings.gemini_model,
     ) -> None:
-        genai.configure(api_key=api_key)
-        self._model = genai.GenerativeModel(
-            model_name=model_name,
-            generation_config={"response_mime_type": "application/json"},
-        )
-        self._transcription_model = genai.GenerativeModel(model_name=model_name)
+        self._client = genai.Client(api_key=api_key)
+        self._model_name = model_name
 
     async def analyse_case(
         self,
@@ -109,9 +106,9 @@ class AIService:
     ) -> CaseAnalysisResult:
         """Analyse a client's legal query and return structured AI output.
 
-        When ``file_bytes`` are provided the file is sent inline (base64) to
-        Gemini alongside the text prompt, enabling multimodal analysis of
-        documents and images.
+        When ``file_bytes`` are provided the file is sent inline to Gemini
+        alongside the text prompt, enabling multimodal analysis of documents
+        and images.
 
         Args:
             text: The client's message text or voice transcription.
@@ -135,13 +132,22 @@ class AIService:
             context="\n".join(context_lines),
         )
 
-        parts: list = [prompt]
+        contents: list = []
         if file_bytes and file_mime_type:
-            parts.insert(0, {"mime_type": file_mime_type, "data": file_bytes})
+            contents.append(
+                types.Part.from_bytes(data=file_bytes, mime_type=file_mime_type)
+            )
+        contents.append(prompt)
 
-        response = await self._model.generate_content_async(parts)
+        response = await self._client.aio.models.generate_content(
+            model=self._model_name,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+            ),
+        )
+
         raw = json.loads(response.text)
-
         questions = [
             ClarifyingQuestion(question=q["question"], options=q["options"])
             for q in raw.get("questions", [])
@@ -169,10 +175,11 @@ class AIService:
         Returns:
             The transcribed text string.
         """
-        response = await self._transcription_model.generate_content_async(
-            [
-                {"mime_type": mime_type, "data": audio_bytes},
+        response = await self._client.aio.models.generate_content(
+            model=self._model_name,
+            contents=[
+                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
                 _TRANSCRIPTION_PROMPT,
-            ]
+            ],
         )
         return response.text.strip()

@@ -222,6 +222,27 @@ class TelegramAdapter(MessagingPlatform):
             mime_type, _ = mimetypes.guess_type(file_path)
             return file_resp.content, mime_type or "application/octet-stream"
 
+    async def remove_inline_keyboard(self, chat_id: str, message_id: int) -> None:
+        """Edit a message to strip its inline keyboard.
+
+        Called immediately after a callback query is answered so the buttons
+        become unclickable and duplicate submissions are prevented.
+
+        Args:
+            chat_id: Chat identifier of the message to edit.
+            message_id: Identifier of the message whose keyboard should be
+                removed.
+        """
+        async with httpx.AsyncClient() as client:
+            await client.post(
+                f"{self._api_base}/editMessageReplyMarkup",
+                json={
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "reply_markup": {"inline_keyboard": []},
+                },
+            )
+
     async def register_webhook(self, webhook_url: str, secret_token: str) -> dict:
         """Register the webhook URL with Telegram.
 

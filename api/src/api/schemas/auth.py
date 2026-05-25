@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
@@ -9,7 +9,7 @@ class LoginRequest(BaseModel):
         password: Plain-text password (transmitted over TLS, never stored).
     """
 
-    email: EmailStr
+    email: str
     password: str
 
 

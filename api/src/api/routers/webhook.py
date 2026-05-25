@@ -69,23 +69,27 @@ async def telegram_webhook(
 
 
 @router.post("/setup/telegram")
-async def setup_telegram_webhook(token: str) -> dict:
+async def setup_telegram_webhook(
+    token: str,
+    url: str | None = None,
+) -> dict:
     """Register the Telegram webhook URL.
-
-    This endpoint should be called once after deployment.  It uses
-    the ``API_BASE_URL`` setting to construct the webhook URL automatically.
 
     Args:
         token: Admin JWT to authorise the setup call.
+        url: Override the webhook URL.  When omitted, ``API_BASE_URL`` from
+            settings is used.  Pass the ngrok/fly.io base URL here to avoid
+            restarting the server just to update the address.
 
     Returns:
-        Telegram's raw ``setWebhook`` response.
+        Telegram's raw ``setWebhook`` response plus the registered URL.
     """
-    webhook_url = f"{settings.api_base_url}/webhook/telegram"
+    webhook_url = f"{url.rstrip('/')}/webhook/telegram" if url else f"{settings.api_base_url}/webhook/telegram"
     result = await _telegram.register_webhook(
         webhook_url=webhook_url,
         secret_token=settings.telegram_webhook_secret,
     )
+    result["registered_url"] = webhook_url
     return result
 
 
@@ -255,6 +259,12 @@ async def _handle_callback(
     if conv is None or conv.state != ConversationState.GATHERING_INFO:
         return
 
+    if conv.current_question_index > q_idx:
+        return
+
+    if message.message_id:
+        await adapter.remove_inline_keyboard(message.chat_id, message.message_id)
+
     answers = json.loads(conv.answers_json or "{}")
     answers[str(q_idx)] = answer
     conv.answers_json = json.dumps(answers)
@@ -354,7 +364,8 @@ async def _finalise_case(
     await session.commit()
     await session.refresh(case)
 
-    conv.case_id = case.id
+    case_id = case.id
+    conv.case_id = case_id
     session.add(conv)
     await session.commit()
 
@@ -365,7 +376,7 @@ async def _finalise_case(
     confirmation = (
         f"{analysis.user_feedback}\n\n"
         f"{priority_emoji} <b>Case priority:</b> {analysis.priority.value}\n"
-        f"📁 <b>Case ID:</b> #{case.id}\n\n"
+        f"📁 <b>Case ID:</b> #{case_id}\n\n"
         "A legal professional will review your case and contact you shortly."
     )
     await adapter.send_message(conv.chat_id, confirmation)
