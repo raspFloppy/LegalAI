@@ -92,4 +92,7 @@ legalai/
         └── services/     API client
 ```
 
-See [docs/SETUP.md](docs/SETUP.md) for installation and deployment instructions, [docs/BOT.md](docs/BOT.md) for the bot's technical architecture, and [docs/DASHBOARD.md](docs/DASHBOARD.md) for the dashboard's design.
+See:
+- [docs/SETUP.md](docs/SETUP.md) for installation and deployment instructions
+- [docs/BOT.md](docs/BOT.md) for the bot's technical architecture
+- [docs/DASHBOARD.md](docs/DASHBOARD.md) for the dashboard's design.
