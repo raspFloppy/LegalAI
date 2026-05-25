@@ -69,7 +69,7 @@ The platform layer is designed for multi-channel support. Adding a WhatsApp (or 
 | Dashboard | NiceGUI |
 | Database ORM | SQLModel (SQLAlchemy async + Pydantic) |
 | Database | SQLite (development) / PostgreSQL (production) |
-| AI | Google Gemini 1.5 Pro |
+| AI | Google Gemini 3.5 Flash (free tier) |
 | Messaging | Telegram Bot API |
 | Authentication | JWT (HS256) via python-jose |
 | Package manager | uv (workspace monorepo) |
