@@ -43,7 +43,7 @@ Client (Telegram)
 │     API Service     │  FastAPI · Python 3.12
 │  ─────────────────  │
 │  Webhook handler    │  Normalises updates from any platform
-│  AI pipeline        │  Gemini 1.5 Pro (text · audio · vision)
+│  AI pipeline        │  Gemini 3.5 flash (text · audio · vision)
 │  Case store         │  SQLite → PostgreSQL-ready
 │  Notification hub   │  Routes replies back to the correct platform
 │  REST API           │  JWT-authenticated endpoints for the dashboard
