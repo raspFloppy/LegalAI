@@ -25,7 +25,9 @@ class CaseStatus(str, Enum):
 class ConversationState(str, Enum):
     """State of an ongoing bot conversation before a case is created."""
 
+    AWAITING_NAME = "AWAITING_NAME"
     GATHERING_INFO = "GATHERING_INFO"
+    AWAITING_UPDATE_CONFIRMATION = "AWAITING_UPDATE_CONFIRMATION"
     SUBMITTED = "SUBMITTED"
 
 
@@ -85,6 +87,7 @@ class Case(SQLModel, table=True):
     raw_message: str
     document_path: Optional[str] = Field(default=None)
     document_original_name: Optional[str] = Field(default=None)
+    documents_json: Optional[str] = Field(default=None)
     lawyer_note: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -104,6 +107,9 @@ class Conversation(SQLModel, table=True):
         questions_json: JSON-serialised list of pending clarifying questions.
         answers_json: JSON-serialised dict mapping question index to answer.
         current_question_index: Index of the question currently being asked.
+        display_name: Full name provided by the user during onboarding.  Used
+            as the client name in the dashboard instead of the platform
+            username.
         file_path: Path to a file the user attached, if any.
         file_mime_type: MIME type of the attached file.
         file_original_name: Original filename of the attachment.
@@ -117,14 +123,16 @@ class Conversation(SQLModel, table=True):
     chat_id: str
     user_id: str
     username: str
-    state: ConversationState = Field(default=ConversationState.GATHERING_INFO)
-    collected_text: str
+    state: ConversationState = Field(default=ConversationState.AWAITING_NAME)
+    display_name: Optional[str] = Field(default=None)
+    collected_text: str = Field(default="")
     questions_json: Optional[str] = Field(default=None)
-    answers_json: Optional[str] = Field(default="{}"),
+    answers_json: Optional[str] = Field(default="{}")
     current_question_index: int = Field(default=0)
     file_path: Optional[str] = Field(default=None)
     file_mime_type: Optional[str] = Field(default=None)
     file_original_name: Optional[str] = Field(default=None)
     case_id: Optional[int] = Field(default=None, foreign_key="cases.id")
+    linked_case_id: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

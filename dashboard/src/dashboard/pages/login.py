@@ -1,6 +1,7 @@
 from nicegui import app, ui
 
 from dashboard.services.api_client import APIClient
+from dashboard import strings
 
 
 def build_login_page() -> None:
@@ -23,18 +24,18 @@ def build_login_page() -> None:
                 ui.label("LegalAI").classes(
                     "text-2xl font-bold text-white tracking-wide"
                 )
-                ui.label("Case Management Portal").classes(
+                ui.label(strings.LOGIN_SUBTITLE).classes(
                     "text-sm text-blue-200"
                 )
 
             with ui.column().classes("w-full px-10 py-8 gap-4"):
                 email_input = ui.input(
-                    label="Email address",
-                    placeholder="lawyer@firm.com",
+                    label=strings.LOGIN_EMAIL_LABEL,
+                    placeholder=strings.LOGIN_EMAIL_PLACEHOLDER,
                 ).props("outlined dense").classes("w-full")
 
                 password_input = ui.input(
-                    label="Password",
+                    label=strings.LOGIN_PASSWORD_LABEL,
                     password=True,
                     password_toggle_button=True,
                 ).props("outlined dense").classes("w-full")
@@ -50,7 +51,7 @@ def build_login_page() -> None:
                     password = password_input.value
 
                     if not email or not password:
-                        error_label.set_text("Please fill in all fields.")
+                        error_label.set_text(strings.LOGIN_ERROR_EMPTY)
                         return
 
                     try:
@@ -60,9 +61,9 @@ def build_login_page() -> None:
                         app.storage.user["name"] = data["name"]
                         ui.navigate.to("/")
                     except Exception:
-                        error_label.set_text("Invalid email or password.")
+                        error_label.set_text(strings.LOGIN_ERROR_INVALID)
 
-                login_btn = ui.button("Sign In", on_click=attempt_login).props(
+                login_btn = ui.button(strings.LOGIN_BUTTON, on_click=attempt_login).props(
                     "unelevated"
                 ).classes(
                     "w-full bg-[#1a3a6b] text-white font-semibold py-2 rounded-lg"
@@ -72,4 +73,4 @@ def build_login_page() -> None:
                     "keydown.enter", lambda _: login_btn.run_method("click")
                 )
 
-        ui.label("LegalAI © 2024").classes("text-xs text-gray-400 mt-4")
+        ui.label(strings.LOGIN_COPYRIGHT).classes("text-xs text-gray-400 mt-4")

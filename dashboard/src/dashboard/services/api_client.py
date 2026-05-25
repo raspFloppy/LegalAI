@@ -141,13 +141,60 @@ class APIClient:
             resp.raise_for_status()
             return resp.json()
 
-    def document_download_url(self, case_id: int) -> str:
-        """Build the URL for downloading a case document.
+    async def patch_case(
+        self,
+        case_id: int,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        priority: Optional[str] = None,
+    ) -> dict:
+        """Update editable fields of a case.
+
+        Args:
+            case_id: Database primary key.
+            title: New title, or ``None`` to leave unchanged.
+            description: New description, or ``None`` to leave unchanged.
+            priority: New priority string (``"HIGH"``/``"MEDIUM"``/``"LOW"``),
+                or ``None`` to leave unchanged.
+
+        Returns:
+            The updated case dict.
+        """
+        payload = {
+            k: v
+            for k, v in {"title": title, "description": description, "priority": priority}.items()
+            if v is not None
+        }
+        async with httpx.AsyncClient(base_url=self._base) as client:
+            resp = await client.patch(
+                f"/cases/{case_id}",
+                json=payload,
+                params={"token": self._token},
+            )
+            resp.raise_for_status()
+            return resp.json()
+
+    async def delete_case(self, case_id: int) -> None:
+        """Permanently delete a case.
+
+        Args:
+            case_id: Database primary key of the case to delete.
+        """
+        async with httpx.AsyncClient(base_url=self._base) as client:
+            resp = await client.delete(
+                f"/cases/{case_id}",
+                params={"token": self._token},
+            )
+            resp.raise_for_status()
+
+    def document_download_url(self, case_id: int, doc_index: int = 0) -> str:
+        """Build the URL for downloading a specific case document.
 
         Args:
             case_id: Database primary key of the case.
+            doc_index: Zero-based index of the document (default ``0``).
 
         Returns:
             The full download URL including the auth token query parameter.
         """
-        return f"{self._base}/cases/{case_id}/document?token={self._token}"
+        return f"{self._base}/cases/{case_id}/document?doc_index={doc_index}&token={self._token}"

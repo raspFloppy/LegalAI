@@ -19,7 +19,7 @@ class FileService:
     """
 
     def __init__(self, upload_dir: str = settings.upload_dir) -> None:
-        self._root = Path(upload_dir)
+        self._root = Path(upload_dir).resolve()
         self._root.mkdir(parents=True, exist_ok=True)
 
     async def save(

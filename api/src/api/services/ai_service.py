@@ -8,45 +8,47 @@ from pydantic import BaseModel
 from api.database.models import CasePriority
 from api.config import settings
 
-_ANALYSIS_PROMPT = """You are a legal case intake assistant for a law firm. A client has submitted a legal query. Analyse it and respond ONLY with valid JSON matching the schema below.
+_ANALYSIS_PROMPT = """Sei un assistente per la presa in carico di casi legali presso uno studio legale. Un cliente ha inviato una richiesta legale. Analizzala e rispondi SOLO con un JSON valido corrispondente allo schema seguente.
 
-Priority rules:
-- HIGH: criminal matters, domestic violence, urgent child custody, housing eviction, immigration detention, urgent injunctions
-- MEDIUM: civil disputes, employment law, contract issues, debt collection, general family law
-- LOW: general legal questions, document review, estate planning, business formation
+Regole per la priorità:
+- HIGH: materia penale, violenza domestica, affidamento urgente di minori, sfratto imminente, detenzione per immigrazione, provvedimenti d'urgenza
+- MEDIUM: controversie civili, diritto del lavoro, questioni contrattuali, recupero crediti, diritto di famiglia generico
+- LOW: domande legali generali, revisione documenti, pianificazione successoria, costituzione d'impresa
 
-Feedback rules:
-- Never give specific legal advice
-- Be empathetic and professional (2-3 sentences max)
-- Acknowledge the situation and explain that a lawyer will review the case
-- Do NOT promise outcomes
+Regole per il feedback:
+- Non fornire mai consulenza legale specifica
+- Sii empatico e professionale (massimo 2-3 frasi)
+- Riconosci la situazione e spiega che un avvocato esaminerà il caso
+- Non promettere risultati
 
-Clarifying questions rules:
-- Only ask if information is genuinely missing and would change the priority or description
-- Maximum 2 questions
-- Each question MUST have 2-4 short answer options (suitable for buttons)
-- If no clarification needed, set "questions" to an empty list
+Regole per le domande di chiarimento:
+- Chiedi solo se mancano informazioni che cambierebbero la priorità o la descrizione
+- Massimo 2 domande
+- Ogni domanda DEVE avere 2-4 opzioni di risposta brevi (adatte a pulsanti)
+- Se non serve alcun chiarimento, imposta "questions" come lista vuota
 
-JSON schema:
+Schema JSON:
 {{
-  "title": "5-7 word case title",
-  "description": "2-3 sentence professional description for the lawyer dashboard",
+  "title": "Titolo del caso in 5-7 parole",
+  "description": "Descrizione professionale in 2-3 frasi per il dashboard dell'avvocato",
   "priority": "HIGH | MEDIUM | LOW",
-  "user_feedback": "Empathetic response to send to the client",
+  "user_feedback": "Risposta empatica da inviare al cliente",
   "questions": [
     {{
-      "question": "The clarifying question text",
-      "options": ["Option A", "Option B"]
+      "question": "Testo della domanda di chiarimento",
+      "options": ["Opzione A", "Opzione B"]
     }}
   ]
 }}
 
-Client message:
+Tutti i campi di testo devono essere scritti in italiano.
+
+Messaggio del cliente:
 {message}
 {context}"""
 
-_TRANSCRIPTION_PROMPT = """The attached audio is a voice message from a client seeking legal help.
-Please transcribe the audio accurately and return ONLY the transcription text, nothing else."""
+_TRANSCRIPTION_PROMPT = """Il file audio allegato è un messaggio vocale di un cliente che cerca assistenza legale.
+Trascrivi l'audio in modo accurato e restituisci SOLO il testo della trascrizione, senza altro."""
 
 
 class ClarifyingQuestion(BaseModel):

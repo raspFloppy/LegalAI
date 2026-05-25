@@ -1,7 +1,9 @@
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from api.database.models import CasePriority, CaseStatus
 
@@ -17,7 +19,9 @@ class CaseResponse(BaseModel):
         description: Longer AI-generated description.
         priority: Urgency level assigned by the AI.
         status: Current processing status.
-        document_original_name: Original filename if a document was attached.
+        document_original_name: Original filename of the primary document (legacy).
+        documents_json: Raw JSON array of all attached documents.
+        documents: Derived list of original filenames for all documents.
         lawyer_note: Note added by the reviewing lawyer, if any.
         created_at: Case creation timestamp (UTC).
         updated_at: Last modification timestamp (UTC).
@@ -30,12 +34,44 @@ class CaseResponse(BaseModel):
     description: str
     priority: CasePriority
     status: CaseStatus
-    document_original_name: Optional[str]
-    lawyer_note: Optional[str]
+    document_original_name: Optional[str] = None
+    documents_json: Optional[str] = None
+    documents: list[str] = []
+    lawyer_note: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def derive_documents(self) -> "CaseResponse":
+        """Populate ``documents`` from ``documents_json`` or the legacy field."""
+        if self.documents_json:
+            docs = json.loads(self.documents_json)
+            self.documents = [
+                d.get("name") or Path(d.get("path", "")).name
+                for d in docs
+                if d.get("name") or d.get("path")
+            ]
+        elif self.document_original_name and not self.documents:
+            self.documents = [self.document_original_name]
+        return self
+
+
+class PatchCaseRequest(BaseModel):
+    """Request body for editing case fields from the dashboard.
+
+    All fields are optional; only provided fields are updated.
+
+    Attributes:
+        title: New case title.
+        description: New case description.
+        priority: New urgency level.
+    """
+
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[CasePriority] = None
 
 
 class AcceptCaseRequest(BaseModel):

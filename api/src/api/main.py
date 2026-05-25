@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from api.config import settings
-from api.database.connection import create_db_and_tables, seed_initial_data
+from api.database.connection import add_missing_columns, create_db_and_tables, seed_initial_data
 from api.routers import auth, cases, webhook
 
 
@@ -24,6 +24,7 @@ async def lifespan(app: FastAPI):
         Control to the running application.
     """
     await create_db_and_tables()
+    await add_missing_columns()
     await seed_initial_data()
     os.makedirs(settings.upload_dir, exist_ok=True)
     yield

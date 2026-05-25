@@ -1,5 +1,5 @@
 app = "legalai-api"
-primary_region = "iad"
+primary_region = "fra"
 
 [build]
   dockerfile = "Dockerfile"

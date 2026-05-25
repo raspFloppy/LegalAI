@@ -1,6 +1,7 @@
 from typing import AsyncGenerator
 
 import bcrypt
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlmodel import SQLModel
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -21,30 +22,48 @@ async def create_db_and_tables() -> None:
         await conn.run_sync(SQLModel.metadata.create_all)
 
 
-async def seed_initial_data() -> None:
-    """Insert the default legal-professional account when the DB is empty.
+async def add_missing_columns() -> None:
+    """Add new columns to existing tables without a full schema migration.
 
-    Uses settings ``SEED_EMAIL``, ``SEED_PASSWORD``, and ``SEED_NAME`` so the
-    credentials can be overridden via environment variables without touching
-    source code.
+    Safe to run on every startup: each ALTER TABLE is ignored if the column
+    already exists.
     """
+    new_columns = [
+        "ALTER TABLE cases ADD COLUMN documents_json TEXT",
+        "ALTER TABLE conversations ADD COLUMN linked_case_id INTEGER",
+    ]
+    async with _engine.begin() as conn:
+        for stmt in new_columns:
+            try:
+                await conn.execute(text(stmt))
+            except Exception:
+                pass
+
+
+async def seed_initial_data() -> None:
+    """Insert default legal-professional accounts when they don't exist yet.
+
+    Primary account uses ``SEED_EMAIL`` / ``SEED_PASSWORD`` / ``SEED_NAME``
+    from settings.  The MVP tester account is hardcoded and idempotent.
+    """
+    from sqlmodel import select
+
+    _SEED_USERS = [
+        (settings.seed_email, settings.seed_password, settings.seed_name),
+        ("occhiutolegal@legalai.com", "occhiutolegal2024", "Occhiuto Legal"),
+    ]
+
     async with AsyncSession(_engine) as session:
-        from sqlmodel import select
-
-        result = await session.exec(
-            select(LegalUser).where(LegalUser.email == settings.seed_email)
-        )
-        if result.first() is not None:
-            return
-
-        user = LegalUser(
-            email=settings.seed_email,
-            hashed_password=bcrypt.hashpw(
-                settings.seed_password.encode(), bcrypt.gensalt()
-            ).decode(),
-            name=settings.seed_name,
-        )
-        session.add(user)
+        for email, password, name in _SEED_USERS:
+            result = await session.exec(select(LegalUser).where(LegalUser.email == email))
+            if result.first() is not None:
+                continue
+            user = LegalUser(
+                email=email,
+                hashed_password=bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode(),
+                name=name,
+            )
+            session.add(user)
         await session.commit()
 
 

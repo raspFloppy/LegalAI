@@ -1,6 +1,7 @@
+from api import strings
+from api.config import settings
 from api.services.platform.base import MessagingPlatform
 from api.services.platform.telegram import TelegramAdapter
-from api.config import settings
 
 
 class MessagingService:
@@ -42,6 +43,7 @@ class MessagingService:
         self,
         platform: str,
         chat_id: str,
+        lawyer_name: str,
         note: str | None = None,
     ) -> None:
         """Notify a client that their case was accepted.
@@ -49,15 +51,13 @@ class MessagingService:
         Args:
             platform: Originating messaging platform.
             chat_id: Client's chat identifier.
+            lawyer_name: Full name of the lawyer who accepted the case.
             note: Optional personalised note from the lawyer.
         """
         adapter = self.get_adapter(platform)
-        text = (
-            "✅ <b>Your case has been accepted.</b>\n\n"
-            "A member of our legal team will be in contact with you shortly."
-        )
+        text = strings.CASE_ACCEPTED.format(lawyer_name=lawyer_name)
         if note:
-            text += f"\n\n<i>{note}</i>"
+            text += strings.CASE_ACCEPTED_NOTE_SUFFIX.format(note=note)
         await adapter.send_message(chat_id, text)
 
     async def notify_case_rejected(
@@ -74,11 +74,7 @@ class MessagingService:
             reason: Rejection reason supplied by the lawyer.
         """
         adapter = self.get_adapter(platform)
-        text = (
-            "❌ <b>Your case has been reviewed.</b>\n\n"
-            "Unfortunately we are unable to take on your case at this time.\n\n"
-            f"<b>Reason:</b> {reason}"
-        )
+        text = strings.CASE_REJECTED.format(reason=reason)
         await adapter.send_message(chat_id, text)
 
     async def notify_more_info_requested(
@@ -95,9 +91,5 @@ class MessagingService:
             message: The lawyer's question or clarification request.
         """
         adapter = self.get_adapter(platform)
-        text = (
-            "📋 <b>Our team needs more information about your case:</b>\n\n"
-            f"{message}\n\n"
-            "Please reply to this message with the requested details."
-        )
+        text = strings.MORE_INFO_REQUESTED.format(message=message)
         await adapter.send_message(chat_id, text)

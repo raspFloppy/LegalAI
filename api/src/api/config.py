@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 1440
 
-    database_url: str = "sqlite+aiosqlite:///./legalai.db"
+    database_url: str = "sqlite+aiosqlite:////app/uploads/legalai.db"
 
     telegram_bot_token: str = "fake-telegram-bot-token"
     telegram_webhook_secret: str = "fake-webhook-secret-token"

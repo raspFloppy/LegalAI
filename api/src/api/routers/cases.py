@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Optional
@@ -15,6 +16,7 @@ from api.schemas.case import (
     AcceptCaseRequest,
     CaseListResponse,
     CaseResponse,
+    PatchCaseRequest,
     RejectCaseRequest,
     RequestMoreInfoRequest,
 )
@@ -129,16 +131,83 @@ async def get_case(
     return CaseResponse.model_validate(case)
 
 
-@router.get("/{case_id}/document")
-async def download_case_document(
+@router.patch("/{case_id}", response_model=CaseResponse)
+async def patch_case(
     case_id: int,
+    body: PatchCaseRequest,
     token: str = Query(...),
     session: AsyncSession = Depends(get_session),
-) -> FileResponse:
-    """Stream the document attached to a case as a file download.
+) -> CaseResponse:
+    """Update editable fields of a case (title, description, priority).
 
     Args:
         case_id: Database primary key.
+        body: Fields to update; unset fields are left unchanged.
+        token: JWT for authentication.
+        session: Injected database session.
+
+    Returns:
+        The updated ``CaseResponse``.
+
+    Raises:
+        HTTPException: 404 when the case does not exist.
+    """
+    await _require_auth(token, session)
+    case = await session.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+
+    if body.title is not None:
+        case.title = body.title
+    if body.description is not None:
+        case.description = body.description
+    if body.priority is not None:
+        case.priority = body.priority
+
+    case.updated_at = datetime.utcnow()
+    session.add(case)
+    await session.commit()
+    await session.refresh(case)
+    return CaseResponse.model_validate(case)
+
+
+@router.delete("/{case_id}", status_code=204)
+async def delete_case(
+    case_id: int,
+    token: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """Permanently delete a case and its associated conversation records.
+
+    Args:
+        case_id: Database primary key.
+        token: JWT for authentication.
+        session: Injected database session.
+
+    Raises:
+        HTTPException: 404 when the case does not exist.
+    """
+    await _require_auth(token, session)
+    case = await session.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Case not found")
+    await session.delete(case)
+    await session.commit()
+
+
+@router.get("/{case_id}/document")
+async def download_case_document(
+    case_id: int,
+    doc_index: int = Query(0, ge=0),
+    token: str = Query(...),
+    session: AsyncSession = Depends(get_session),
+) -> FileResponse:
+    """Stream a document attached to a case as a file download.
+
+    Args:
+        case_id: Database primary key.
+        doc_index: Zero-based index into the ``documents_json`` array.  Defaults
+            to ``0`` (first / only document), preserving backward compatibility.
         token: JWT for authentication.
         session: Injected database session.
 
@@ -146,25 +215,32 @@ async def download_case_document(
         A ``FileResponse`` streaming the stored file.
 
     Raises:
-        HTTPException: 404 when the case or its document does not exist.
+        HTTPException: 404 when the case, document index, or file does not exist.
     """
     await _require_auth(token, session)
     case = await session.get(Case, case_id)
-    if case is None or not case.document_path:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
-        )
-    path = Path(case.document_path)
+    if case is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
+    if case.documents_json:
+        docs = json.loads(case.documents_json)
+        if doc_index >= len(docs):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+        doc = docs[doc_index]
+        path = Path(doc["path"])
+        filename = doc.get("name") or path.name
+    elif case.document_path:
+        path = Path(case.document_path)
+        filename = case.document_original_name or path.name
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+
     if not path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document file missing from storage",
         )
-    return FileResponse(
-        path=path,
-        filename=case.document_original_name or path.name,
-    )
+    return FileResponse(path=path, filename=filename)
 
 
 @router.post("/{case_id}/accept", response_model=CaseResponse)
@@ -188,7 +264,7 @@ async def accept_case(
     Raises:
         HTTPException: 404 / 409 on missing or non-pending case.
     """
-    await _require_auth(token, session)
+    current_user = await _require_auth(token, session)
     case = await session.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
@@ -202,7 +278,7 @@ async def accept_case(
     await session.commit()
     await session.refresh(case)
 
-    await _messaging.notify_case_accepted(case.platform, case.chat_id, body.note)
+    await _messaging.notify_case_accepted(case.platform, case.chat_id, current_user.name, body.note)
 
     return CaseResponse.model_validate(case)
 

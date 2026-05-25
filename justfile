@@ -36,15 +36,29 @@ clean:
     rm -rf api/legalai.db api/uploads dashboard/uploads
     @echo "Cleanup complete."
 
-# Register the Telegram webhook (API must be running and public)
+# Register the Telegram webhook
+# URL can be ngrok (https://abc.ngrok-free.app), localhost (http://localhost:8000), or fly.io (https://app.fly.dev)
 register-webhook:
     #!/usr/bin/env bash
-    read -p "Enter API Base URL (e.g., https://abc123.ngrok-free.app): " URL
-    TOKEN=$(curl -s -X POST "$URL/auth/login" \
+    set -e
+    read -p "Enter API base URL (ngrok / localhost / fly.io): " URL
+    URL="${URL%/}"
+    echo "→ Logging in at $URL ..."
+    RESPONSE=$(curl -s --max-time 10 -X POST "$URL/auth/login" \
       -H "Content-Type: application/json" \
-      -d '{"email":"lawyer@legalai.com","password":"legalai2024"}' \
-      | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-    curl -s -X POST "$URL/webhook/setup/telegram?token=$TOKEN&url=$URL" | python3 -m json.tool
+      -d '{"email":"lawyer@legalai.com","password":"legalai2024"}')
+    if [ -z "$RESPONSE" ]; then
+      echo "✗ No response from $URL — is the API running and reachable?"
+      exit 1
+    fi
+    TOKEN=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['access_token'])" 2>/dev/null)
+    if [ -z "$TOKEN" ]; then
+      echo "✗ Login failed. Server replied: $RESPONSE"
+      exit 1
+    fi
+    echo "✓ Token obtained."
+    echo "→ Registering webhook ..."
+    curl -s --max-time 10 -X POST "$URL/webhook/setup/telegram?token=$TOKEN&url=$URL" | python3 -m json.tool
 
 # Deploy the API to Fly.io
 deploy-api:
